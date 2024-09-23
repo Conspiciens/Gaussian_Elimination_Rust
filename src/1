@@ -1,0 +1,27 @@
+
+fn fwd_elimination(){
+	
+} 
+
+fn back_subset(){
+
+}
+
+fn naive_gaussian(coeff: [&[&f32]], const_num: [&f32]){
+    let mut sol = [f32. coeff.len()]; 
+
+} 
+
+fn main() {
+	/* Take an array with single percision*/
+	let mut array_single_per = [ [ 6, -2, 2, 4], 
+								[ 12, 8, 6, 10], 
+								[ 3, -13, 9, 3], 
+								[ -6, 4, 1, -18]]; 
+
+    let mut const_single_per = [16, 24, -19, -34]; 
+
+    naive_gaussian(array_single_per, const_single_per); 
+    
+	
+}
