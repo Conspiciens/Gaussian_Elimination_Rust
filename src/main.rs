@@ -1,10 +1,43 @@
 use std::fs::File; 
-use std::io::{BufRead, BufReader}; 
+use std::io::{ BufRead, BufReader, Write }; 
+use std::env; 
+/* 
+    Within the file is code that will read a file that is specified by the CS3010 Assignment 1. Taking in a .lin file that contains the matrix size in row 1 for the columns and row     . The matrix numbers are spaced out equally and will be read by this program, the file must be in the same directory as the .rs file. If you want the binary file after running cargo run it's in /tar     /debug/gaussian. There are two flags that are avaliable to the user, which is --decimal to specify f64 or double percision or --spp to use the Sparse Partial Pivoting. Both can    can be used at the same time to activate both. The output will go to to .sol file and the solutions will be spaced out in a single line. The default is Gaussian elimination with single percision. : 
+*/
 
+/* 
+    Write to file with the suffix being .sol 
 
+    @params 
+        file_name: Takes a filename input 
+        sol: Solution Vec either in f32 or f64 (single or double per) 
+
+    @return 
+        None 
+*/ 
+fn write_to_file<T: ToString>(file_name: &String, sol: &Vec<T>) -> () {
+    let mut file = File::create(file_name).expect("Error creating file"); 
+
+    for num in sol {
+        file.write_all(num.to_string().as_bytes()).expect("Error Writing to file"); 
+        file.write_all(b" ").expect("Error Writing to file"); 
+    } 
+}  
+
+/* 
+    Foward Elimination using Naive Gaussian 
+    
+    @params
+        coeff: Get all the coefficients 2d array 
+        const_num: Get the const numbers 
+
+    @return 
+        None
+*/ 
 fn fwd_elimination(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>) -> () {
     let _size = const_num.len(); 
 
+    /* Foward Elimination */ 
     for _k in 0.._size - 1 {    	
         for _i in _k + 1.._size {
             let multi: f64 = coeff[_i][_k] / coeff[_k][_k]; 
@@ -17,11 +50,22 @@ fn fwd_elimination(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>) -> () {
 } 
 
 
+/* 
+   Back Substitution in the naive gaussian, get the final answers 
+   @params 
+        coeff: Coefficients stored within a 2d array 
+        const_num: Constant numbers within a array 
+        sol: Solutions derived from back substitution 
+
+    @return 
+        None
+*/ 
 fn back_subset(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>, sol: &mut Vec<f64>) -> () {
     let _size = const_num.len(); 
 
     sol[_size - 1] = const_num[_size - 1] / coeff[_size - 1][_size - 1]; 
 
+    /* Compute all the solutions */ 
     for _i in (0.._size - 1).rev() {
         let mut sum: f64 = const_num[_i]; 
         for _j in _i + 1.._size { 
@@ -31,18 +75,34 @@ fn back_subset(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>, sol: &mut Ve
     }         
 }
 
-fn naive_gaussian(mut coeff: Vec<Vec<f64>>, mut const_num: Vec<f64>) -> () {
+/* 
+    Naive gaussian init the  
+    @params
+        coeff: Coefficients stored in 2d array
+        const_num: Constant numbers stored in array   
+    @return 
+        Vec<f64>  
+*/ 
+fn naive_gaussian(mut coeff: Vec<Vec<f64>>, mut const_num: Vec<f64>) -> Vec<f64> {
     let size: usize = const_num.len();  
     let mut sol: Vec<f64> = vec![0.0; size]; 
 
     /* Borrowing the coeff and const_num */ 
     fwd_elimination(&mut coeff, &mut const_num);  
     back_subset(&mut coeff, &mut const_num, &mut sol); 
+
+    return sol; 
 } 
 
-/* Read from file the matrix and return the variable and const matrices */ 
-fn load_matrix() -> (Vec<Vec<f64>>, Vec<f64>) {
-    let file = File::open("sys1.lin").expect("File doesn't exist"); 
+/* 
+    Read from file the matrix and return the coefficients and const matrices 
+    @params
+        file_name: Name of the file to read from  
+    @return 
+        (Vec<Vec<f64>>, Vec<f64>)
+*/ 
+fn load_matrix(file_name: &String) -> (Vec<Vec<f64>>, Vec<f64>) {
+    let file = File::open(file_name).expect("File doesn't exist"); 
     let reader = BufReader::new(file); 
 
     let mut total_lines: Option<usize> = None; 
@@ -58,11 +118,10 @@ fn load_matrix() -> (Vec<Vec<f64>>, Vec<f64>) {
             .map(str::to_string)
             .collect(); 
 
-
         /* Convert all the strings to floats */ 
         let nums_array: Vec<f64> = vec_str 
             .into_iter()
-            .map(|num_str| num_str.trim().parse::<f64>().expect("Error parseing values"))
+            .map(|num_str| num_str.trim().parse::<f64>().expect("Error parsing values"))
             .collect(); 
 
         /* Init the matrix vector */ 
@@ -89,12 +148,16 @@ fn load_matrix() -> (Vec<Vec<f64>>, Vec<f64>) {
     return (matrix_vec, const_vec); 
 } 
 
-/* fn write_to_file(mut coeff: Vec<Vec<f64>>, mut const_num: Vec<f64>) -> None {
-    let file = File::open(""); 
+/* 
+    Scaled Partial Pivoting Gaussian Elimination Init 
+    @params
+        coeff: Coefficients in 2d array 
+        const_num: constants within a array
+    @return 
+        sol: Vec<f64> 
 
-} */ 
-
-fn spp_gausian(mut coeff: Vec<Vec<f64>>, mut const_num: Vec<f64>) -> () {
+*/ 
+fn spp_gaussian(mut coeff: Vec<Vec<f64>>, mut const_num: Vec<f64>) -> Vec<f64> {
     let size: usize = coeff.len(); 
     let mut sol: Vec<f64>  = vec![0.0; size]; 
     let mut ind: Vec<usize> = vec![0; size]; 
@@ -103,17 +166,27 @@ fn spp_gausian(mut coeff: Vec<Vec<f64>>, mut const_num: Vec<f64>) -> () {
         ind[_i] = _i; 
     } 
 
-    sppd_fwd_elimination(&mut coeff, &mut const_num, &mut ind); 
+    spp_fwd_elimination(&mut coeff, &mut const_num, &mut ind); 
     spp_back_subset(&mut coeff, &mut const_num, &mut sol, &mut ind); 
-    
-    println!("{:?}", sol); 
 
+    return sol; 
 } 
 
-fn sppd_fwd_elimination(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>, ind: &mut Vec<usize>) -> () {
+/* 
+    Scaled Partial Pivoting Gaussian Elimination Foward Elimination
+    @params 
+        coeff: Loads coefficients for 2d array 
+        const_num: Loads the constant numbers in an array 
+        ind: The indexes that are to be stored 
+
+    @return 
+        None 
+*/ 
+fn spp_fwd_elimination(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>, ind: &mut Vec<usize>) -> () {
     let _size: usize = const_num.len(); 
     let mut scaling: Vec<f64> = vec![0.0; _size]; 
     
+    /* Get the scaling numbers and find the greatest one */ 
     for _i in 0.._size {
         let mut smax: f64 = 0.0; 
         for _j in 0.._size {
@@ -124,6 +197,7 @@ fn sppd_fwd_elimination(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>, ind
         scaling[_i] = smax; 
     } 
 
+    /* Foward Elimination */ 
     for _k in 0.._size - 1 {
         let mut rmax: f64 = 0.0; 
         let mut maxInd: usize = _k; 
@@ -156,12 +230,23 @@ fn sppd_fwd_elimination(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>, ind
 
 }  
 
+/*
+    Scaled Partial Pivoting Back Subtitution
+    @params
+        coeff: coefficients in a 2d array 
+        const_num: constants that are within a arrray
+        sol: solutions that are stored in an array
+        ind: indexes that are used in switching
 
+    @return 
+        None
+*/  
 fn spp_back_subset(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>, sol: &mut Vec<f64>, ind: &mut Vec<usize>) -> () {
     let _size: usize = const_num.len(); 
 
     sol[_size - 1] = const_num[ind[_size - 1]] / coeff[ind[_size - 1]][_size - 1]; 
 
+    /* Compute all the solutions */ 
     for _i in (0..(_size - 1)).rev() {  
        let mut sum: f64 = const_num[ind[_i]]; 
        for _j in _i + 1.._size {
@@ -173,14 +258,46 @@ fn spp_back_subset(coeff: &mut Vec<Vec<f64>>, const_num: &mut Vec<f64>, sol: &mu
 
 fn main() {
     /* Set the handling of spp flag and file input */ 
-    // let pattern = std::env::args().nth(1).expect("No flag was given"); 
-    // let path = std::env::args().nth(2).expect("No File was given"); 
+    let mut file_name: String= String::new();  
+    let mut spp_flag: bool = false; 
+    let mut double_flag: bool = false; 
 
+    /* Collect arguments */ 
+    let args: Vec<String> = env::args().collect(); 
 
-    /* Load the matrix from file */ 
-    let matrix: (Vec<Vec<f64>>, Vec<f64>) = load_matrix(); 
+    /* Check for arguments given by the user */ 
+    for arg in args.into_iter() {
+        match arg { 
+            arg if arg.ends_with(".lin") => file_name = arg, 
+            arg if arg.contains("--spp") => spp_flag = true, 
+            arg if arg.contains("--double") => double_flag = true,  
+            _ => () 
+        } 
+    } 
 
+    /* Load matrix from file */ 
+    let matrix: (Vec<Vec<f64>>, Vec<f64>) = load_matrix(&file_name); 
 
-    naive_gaussian(matrix.0, matrix.1); 
-    spp_gausian(matrix.0, matrix.1); 
+    /* Determine whether to run spp or naive */ 
+    let mut sol: Vec<f64> = Vec::new(); 
+    if spp_flag == true { 
+        sol = spp_gaussian(matrix.0, matrix.1); 
+    } else {
+        sol = naive_gaussian(matrix.0, matrix.1); 
+    } 
+
+    /* Remove the .lin and add the .sol suffix */ 
+    file_name = file_name.strip_suffix(".lin").expect("Error").to_string(); 
+    file_name = file_name + ".sol"; 
+    
+    /* Check whether single or double percision is to be returned */ 
+    if double_flag == true { 
+        write_to_file(&file_name, &sol); 
+    } else {
+       let mut float_32_sol: Vec<f32> = Vec::new(); 
+       for float_64 in &sol  {
+            float_32_sol.push(*float_64 as f32); 
+       } 
+        write_to_file(&file_name, &float_32_sol); 
+    } 
 }
